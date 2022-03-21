@@ -38,8 +38,6 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTarget(cv::Mat img, rs2
 	cv::imshow("Source Image", img);
 #endif
 
-	cv::bitwise_not(img, img);
-
 	// Setup SimpleBlobDetector parameters.
 	cv::SimpleBlobDetector::Params params;
 

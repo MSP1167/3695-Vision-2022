@@ -1,10 +1,17 @@
 #include <iostream>
 #include "librealsense2/rs.hpp"
 #include "FindTarget.hpp"
+#include "InputParser.hpp"
 
+/// <summary>
+/// Filter IR Image from color Image (Green)
+/// </summary>
+/// <param name="ir">IR/Grayscale Image</param>
+/// <param name="mask">Grayscale Mask</param>
+/// <returns>Filtered IR Image</returns>
+cv::Mat filterIR(cv::Mat ir, cv::Mat mask);
 
-
-int main() {
+int main(int& argc, char** argv) {
 	std::cout << "Starting Program!" << std::endl;
 
 	rs2::pipeline p;
@@ -45,6 +52,11 @@ int main() {
 
 	const rs2_intrinsics cameraIntrinsics = p.get_active_profile().get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>().get_intrinsics();
 
+	// Should we mask with color?
+	bool maskIR = false;
+	InputParser inputParser(argc, argv);
+	if (inputParser.cmdOptionExists("-m"))
+		maskIR = true;
 
 	while (true) {
 		frame_num++;
@@ -70,12 +82,23 @@ int main() {
 
 		const int w = img.as<rs2::video_frame>().get_width();
 		const int h = img.as<rs2::video_frame>().get_height();
-
 		cv::Mat image = cv::Mat(cv::Size(w, h), CV_8UC1, (void*)img.get_data());
+
+		const int wc = color.as<rs2::video_frame>().get_width();
+		const int hc = color.as<rs2::video_frame>().get_height();
+		cv::Mat imageColor = cv::Mat(cv::Size(w, h), CV_8UC3, (void*)color.get_data());
+
+		cv::Mat channel[3];
+
+		cv::split(imageColor, channel);
 
 		cv::GaussianBlur(image, image, cv::Size(11, 5), 0, 0);
 
 		threshold(image, image, 250, 255, cv::THRESH_BINARY);
+
+		if (maskIR)
+			// Channel 1 is Green (R,G,B)
+			filterIR(image, channel[1]);
 
 		TargetFinder::TargetFinder targetFinder;
 
@@ -152,4 +175,13 @@ int main() {
 #endif
 	}
 	return 0;
+}
+
+cv::Mat filterIR(cv::Mat ir, cv::Mat mask)
+{
+	cv::threshold(mask, mask, 245, 255, cv::THRESH_BINARY_INV);
+	cv::threshold(ir, ir, 245, 255, cv::THRESH_BINARY_INV);
+	cv::Mat masked_ir = cv::Mat::zeros(ir.size(), ir.type());
+	cv::bitwise_and(mask, ir, masked_ir);
+	return masked_ir;
 }
