@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+/x64/Debug
+/FRCVision2022Rewrite/x64/Debug
+/.vs/FRCVision2022Rewrite/v17
