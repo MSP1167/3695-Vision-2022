@@ -7,9 +7,9 @@
 /// Filter IR Image from color Image (Green)
 /// </summary>
 /// <param name="ir">IR/Grayscale Image</param>
-/// <param name="mask">Grayscale Mask</param>
+/// <param name="roi">Region of Interest</param>
 /// <returns>Filtered IR Image</returns>
-cv::Mat filterIR(cv::Mat ir, cv::Mat mask1, cv::Mat mask2);
+cv::Mat filterIR(cv::Mat ir, cv::Rect roi);
 
 #include <string>
 #include <vector>
@@ -85,8 +85,8 @@ int main(int& argc, char** argv) {
 	// Should we mask with color?
 	bool maskIR = false;
 	//InputParser inputParser(argc, argv);
-	if (1)
-		maskIR = true;
+	//if (1)
+		//maskIR = true;
 	std::cout << "Starting Loop..." << std::endl;
 	while (true) {
 
@@ -139,10 +139,6 @@ int main(int& argc, char** argv) {
 		cv::GaussianBlur(image, image, cv::Size(11, 5), 0, 0);
 
 		threshold(image, image, 230, 255, cv::THRESH_BINARY);
-
-		if (maskIR)
-			// Channel 1 is Green (R,G,B)
-			image = filterIR(image, channel[1], channel[2]);
 #ifdef WINDOW
 		cv::imshow("Masked Image", image);
 #endif
@@ -152,8 +148,11 @@ int main(int& argc, char** argv) {
 
 		TargetFinder::TargetFinder targetFinder;
 
-		TargetFinder::TargetData data = targetFinder.findTargetNoDepth(imageColor);
+		TargetFinder::TargetData colorTargetData = targetFinder.findTargetNoDepth(imageColor);
 
+		image = filterIR(image, colorTargetData.target);
+
+		TargetFinder::TargetData data = targetFinder.findTargetNoDepth(image);
 		
 		if (data.targetFound == false) {
 			const sec duration = clock::now() - before;
@@ -227,15 +226,11 @@ int main(int& argc, char** argv) {
 	return 0;
 }
 
-cv::Mat filterIR(cv::Mat ir, cv::Mat mask1, cv::Mat mask2)
+cv::Mat filterIR(cv::Mat ir, cv::Rect roi)
 {
-	cv::threshold(mask1, mask1, 245, 255, cv::THRESH_BINARY_INV);
-	cv::threshold(ir, ir, 245, 255, cv::THRESH_BINARY_INV);
-	cv::Mat masked_ir = cv::Mat::zeros(ir.size(), ir.type());
-	cv::bitwise_and(mask1, ir, masked_ir);
-	//cv::Mat masked_red = cv::Mat::zeros(mask2.size(), mask2.type());
-	//cv::bitwise_and(mask2, ir, masked_red);
-	//cv::bitwise_not(masked_red, masked_red);
-	//cv::bitwise_and(masked_ir, masked_red, masked_ir);
-	return masked_ir;
+	cv::Mat mask = cv::Mat::zeros(8, 8, CV_8U);
+	cv::threshold(mask, mask, 240, 255, cv::ThresholdTypes::THRESH_BINARY);
+	mask(roi) = 255;
+	cv::bitwise_and(mask, ir, ir);
+	return ir;
 }
