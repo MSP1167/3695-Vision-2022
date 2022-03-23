@@ -1,7 +1,7 @@
 #include <iostream>
 #include "librealsense2/rs.hpp"
 #include "FindTarget.hpp"
-#include "InputParser.hpp"
+#include "GripPipeline.h"
 
 /// <summary>
 /// Filter IR Image from color Image (Green)
@@ -9,17 +9,46 @@
 /// <param name="ir">IR/Grayscale Image</param>
 /// <param name="mask">Grayscale Mask</param>
 /// <returns>Filtered IR Image</returns>
-cv::Mat filterIR(cv::Mat ir, cv::Mat mask);
+cv::Mat filterIR(cv::Mat ir, cv::Mat mask1, cv::Mat mask2);
+
+#include <string>
+#include <vector>
+
+class InputParser {
+public:
+	InputParser(int &argc, char** argv) {
+		if (sizeof(argv) > 0)
+			for (int i = 1; i < argc; ++i)
+				this->tokens.push_back(std::string(argv[i]));
+	}
+	const std::string& getCmdOption(const std::string& option) const {
+		std::vector<std::string>::const_iterator itr;
+		itr = std::find(this->tokens.begin(), this->tokens.end(), option);
+		if (itr != this->tokens.end() && ++itr != this->tokens.end()) {
+			return *itr;
+		}
+		static const std::string empty_string("");
+		return empty_string;
+	}
+	bool cmdOptionExists(const std::string& option) const {
+		return std::find(this->tokens.begin(), this->tokens.end(), option)
+			!= this->tokens.end();
+	}
+private:
+	std::vector <std::string> tokens;
+};
 
 int main(int& argc, char** argv) {
 	std::cout << "Starting Program!" << std::endl;
 
 	rs2::pipeline p;
 	rs2::config cfg;
+	
+	std::cout << "Enableing Streams & Settings..." << std::endl;
 
 	cfg.enable_stream(RS2_STREAM_INFRARED, 1, 1280, 720, RS2_FORMAT_Y8, 30);
 	cfg.enable_stream(RS2_STREAM_DEPTH, 1280, 720, RS2_FORMAT_ANY, 30);
-	cfg.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_Y8, 30);
+	cfg.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_BGR8, 30);
 
 	rs2::decimation_filter dec;
 	dec.set_option(RS2_OPTION_FILTER_MAGNITUDE, 2);
@@ -32,9 +61,9 @@ int main(int& argc, char** argv) {
 	spat.set_option(RS2_OPTION_HOLES_FILL, 5);
 
 	rs2::temporal_filter temp;
-
+	std::cout << "Settings Set! Starting Camera..." << std::endl;
 	auto profile = p.start(cfg);
-
+	std::cout << "Camera Started! Setting Sensor Data..." << std::endl;
 	auto sensor = profile.get_device().first<rs2::depth_sensor>();
 
 	sensor.set_option(RS2_OPTION_VISUAL_PRESET, RS2_RS400_VISUAL_PRESET_HIGH_DENSITY);
@@ -52,13 +81,18 @@ int main(int& argc, char** argv) {
 
 	const rs2_intrinsics cameraIntrinsics = p.get_active_profile().get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>().get_intrinsics();
 
+	std::cout << "Checking if color mask should be used..." << std::endl;
 	// Should we mask with color?
 	bool maskIR = false;
-	InputParser inputParser(argc, argv);
-	if (inputParser.cmdOptionExists("-m"))
+	//InputParser inputParser(argc, argv);
+	if (1)
 		maskIR = true;
-
+	std::cout << "Starting Loop..." << std::endl;
 	while (true) {
+
+#ifdef WINDOW
+		cv::waitKey(1);
+#endif
 		frame_num++;
 		const auto before = clock::now();
 
@@ -66,7 +100,7 @@ int main(int& argc, char** argv) {
 
 		// align frames
 		//frames = align_to_ir.process(frames);
-
+		//align_to_depth.process(frames);
 		// get depth frame
 		rs2::depth_frame depth = frames.get_depth_frame();
 		depth = dec.process(depth);
@@ -76,6 +110,8 @@ int main(int& argc, char** argv) {
 
 		// get ir frame
 		rs2::frame img = frames.get_infrared_frame(1);
+
+		
 
 		// get color frame
 		rs2::frame color = frames.get_color_frame();
@@ -90,19 +126,33 @@ int main(int& argc, char** argv) {
 
 		cv::Mat channel[3];
 
-		cv::split(imageColor, channel);
+		//image = channel[1];
+		//cv::GaussianBlur(imageColor, imageColor, cv::Size(25, 25), 0, 0);
 
+		cv::split(imageColor, channel);
+#ifdef WINDOW
+		cv::imshow("RAW GREEN", channel[1]);
+		cv::imshow("RAW IR", image);
+		cv::imshow("RAW COLOR", imageColor);
+#endif
+		//image = channel[1];
 		cv::GaussianBlur(image, image, cv::Size(11, 5), 0, 0);
 
-		threshold(image, image, 250, 255, cv::THRESH_BINARY);
+		threshold(image, image, 230, 255, cv::THRESH_BINARY);
 
 		if (maskIR)
 			// Channel 1 is Green (R,G,B)
-			filterIR(image, channel[1]);
+			image = filterIR(image, channel[1], channel[2]);
+#ifdef WINDOW
+		cv::imshow("Masked Image", image);
+#endif
+
+		grip::GripPipeline gripPipeline;
+		gripPipeline.Process(imageColor);
 
 		TargetFinder::TargetFinder targetFinder;
 
-		TargetFinder::TargetData data = targetFinder.findTarget(image, depth, cameraIntrinsics);
+		TargetFinder::TargetData data = targetFinder.findTargetNoDepth(imageColor);
 
 		
 		if (data.targetFound == false) {
@@ -177,11 +227,15 @@ int main(int& argc, char** argv) {
 	return 0;
 }
 
-cv::Mat filterIR(cv::Mat ir, cv::Mat mask)
+cv::Mat filterIR(cv::Mat ir, cv::Mat mask1, cv::Mat mask2)
 {
-	cv::threshold(mask, mask, 245, 255, cv::THRESH_BINARY_INV);
+	cv::threshold(mask1, mask1, 245, 255, cv::THRESH_BINARY_INV);
 	cv::threshold(ir, ir, 245, 255, cv::THRESH_BINARY_INV);
 	cv::Mat masked_ir = cv::Mat::zeros(ir.size(), ir.type());
-	cv::bitwise_and(mask, ir, masked_ir);
+	cv::bitwise_and(mask1, ir, masked_ir);
+	//cv::Mat masked_red = cv::Mat::zeros(mask2.size(), mask2.type());
+	//cv::bitwise_and(mask2, ir, masked_red);
+	//cv::bitwise_not(masked_red, masked_red);
+	//cv::bitwise_and(masked_ir, masked_red, masked_ir);
 	return masked_ir;
 }

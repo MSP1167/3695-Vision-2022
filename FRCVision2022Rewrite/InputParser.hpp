@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+#include <vector>
 
 /// <summary>
 /// Parses argc and argv inputs to cmd

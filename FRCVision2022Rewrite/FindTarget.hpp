@@ -33,6 +33,8 @@ namespace TargetFinder {
 		/// <returns>2D Array of Points with Center of Target and Center of Center Target</returns>
 		TargetData findTarget(cv::Mat img, rs2::depth_frame depth, rs2_intrinsics cameraIntrinsics);
 
+		TargetData findTargetNoDepth(cv::Mat img);
+
 		/// <summary>
 		/// Make Sendable Data From Params
 		/// </summary>

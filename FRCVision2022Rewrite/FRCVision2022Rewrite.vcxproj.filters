@@ -21,7 +21,7 @@
     <ClCompile Include="FindTarget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="InputParser.cpp">
+    <ClCompile Include="GripPipeline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,8 +29,8 @@
     <ClInclude Include="FindTarget.hpp">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="InputParser.hpp">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="GripPipeline.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

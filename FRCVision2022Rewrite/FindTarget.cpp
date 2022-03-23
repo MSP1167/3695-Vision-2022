@@ -152,6 +152,123 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTarget(cv::Mat img, rs2
 	return targetData;
 }
 
+TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat img)
+{
+	TargetData targetData;
+
+	targetData.targetFound = false;
+
+	using clock = std::chrono::system_clock;
+	using sec = std::chrono::duration<double>;
+
+#ifdef WINDOW
+	cv::imshow("Source Image", img);
+#endif
+
+	// Setup SimpleBlobDetector parameters.
+	cv::SimpleBlobDetector::Params params;
+
+	// Minimum Distance Between Blobs
+	params.minDistBetweenBlobs = 25.0f;
+
+	// Change thresholds
+	params.minThreshold = 200;
+	params.maxThreshold = 255;
+
+	// Filter by Area.
+	params.filterByArea = true;
+	params.minArea = 10;
+	params.maxArea = 1000;
+
+	// Filter by Circularity
+	params.filterByCircularity = false;
+	params.minCircularity = 0.1;
+
+	// Filter by Convexity
+	params.filterByConvexity = false;
+	params.minConvexity = 0.87;
+
+	// Filter by Inertia
+	params.filterByInertia = false;
+	params.minInertiaRatio = 0.01;
+
+	cv::Ptr<cv::SimpleBlobDetector> detector = cv::SimpleBlobDetector::create(params);
+
+	std::vector<cv::KeyPoint> keypoints;
+	detector->detect(img, keypoints);
+
+	drawKeypoints(img, keypoints, img, cv::Scalar(0, 0, 255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+#ifdef WINDOW
+	cv::imshow("Keypoints", img);
+#endif
+
+	// Convert Keypoints to Points
+	std::vector<cv::Point> points;
+	for (cv::KeyPoint keypoint : keypoints)
+	{
+		points.push_back(cv::Point(keypoint.pt.x, keypoint.pt.y));
+	}
+
+	// If we do not see 3 points, return as there is no reliable target to find
+	if (points.size() < 3) {
+		return targetData;
+	}
+
+
+	std::vector<cv::Rect> rectangles;
+	for (cv::Point point : points) {
+		//line(image, Point(0, keypoints[i].pt.y), Point(image.cols, keypoints[i].pt.y), (0, 0, 255));
+		cv::Point2f corner1 = cv::Point(point.x - VISION_AREA_OFFSET_X, point.y + VISION_AREA_OFFSET_Y);
+		cv::Point2f corner2 = cv::Point(point.x + VISION_AREA_OFFSET_X, point.y - VISION_AREA_OFFSET_Y);
+		cv::Rect rect1 = cv::Rect(corner1, corner2);
+		rectangles.push_back(rect1);
+		rectangle(img, rect1, (0, 0, 255));
+	}
+#ifdef WINDOW
+	cv::imshow("Detected Targets", img);
+#endif
+
+	std::vector<int> pointsInside(rectangles.size(), 0);
+	for (int i = 0; i < rectangles.size(); i++) {
+		for (cv::Point point : points) {
+			if (rectangles[i].contains(point)) {
+				pointsInside[i]++;
+			}
+		}
+#ifdef _DEBUG
+		std::cout << "Points in rectangle " << i << ": " << pointsInside[i] << "\n";
+#endif
+	}
+
+	// Check if Vector is Empty
+	if (pointsInside.empty()) {
+		return targetData;
+	}
+	// Find first Max Value
+	int maxvalue = pointsInside[0];
+	int position = 0;
+	for (unsigned int i = 0; i < pointsInside.size(); i++) {
+		if (pointsInside[i] > maxvalue) {
+			maxvalue = pointsInside[i];
+			position = i;
+		}
+	}
+
+	const int highestPointValue = maxvalue;
+	const int highestPointValueLocation = position;
+
+	targetData.targetFound = true;
+	targetData.target = getFullTargetRect(rectangles[highestPointValueLocation], rectangles, points[highestPointValueLocation], points);
+	targetData.centerTarget = rectangles[highestPointValueLocation];
+	targetData.targetWidth = targetData.target.width;
+	targetData.targetHeight = targetData.target.height;
+	targetData.centerTargetWidth = targetData.centerTarget.width;
+	targetData.centerTargetHeight = targetData.centerTarget.height;
+
+	return targetData;
+}
+
 cv::Rect getFullTargetRect(cv::Rect mainRectangle, std::vector<cv::Rect> rectangles, cv::Point mainPoint, std::vector<cv::Point> points) {
 	// get left bound
 	cv::Rect bigRectangle = mainRectangle;
