@@ -5,6 +5,7 @@
 #include "networktables/NetworkTable.h"
 #include "networktables/NetworkTableEntry.h"
 #include "networktables/NetworkTableInstance.h"
+#include "cameraserver/CameraServer.h"
 
 /// <summary>
 /// Filter IR Image from color Image (Green)
@@ -96,6 +97,7 @@ int main(int& argc, char** argv) {
 	nt::NetworkTableEntry DistanceToTargetGroundEntry = NetworkTable->GetEntry("DistanceToTargetGround");
 	nt::NetworkTableEntry FrameNumberEntry = NetworkTable->GetEntry("Frame Number Processed By Vision");
 	nt::NetworkTableEntry FrameDurationEntry = NetworkTable->GetEntry("Frame Process Time By Vision");
+	nt::NetworkTableEntry UseCameraServerEntry = NetworkTable->GetEntry("Use Vision Camera as Vision");
 
 	std::cout << "Starting Loop..." << std::endl;
 	while (true) {
@@ -133,6 +135,14 @@ int main(int& argc, char** argv) {
 		const int wc = color.as<rs2::video_frame>().get_width();
 		const int hc = color.as<rs2::video_frame>().get_height();
 		cv::Mat imageColor = cv::Mat(cv::Size(w, h), CV_8UC3, (void*)color.get_data());
+
+		
+		cs::CvSink cvSink = frc::CameraServer::GetInstance()->GetVideo();
+		cs::CvSource outputStream = frc::CameraServer::GetInstance()->PutVideo("Turret Camera", 1280, 720);
+		// Check if we should cast the image to CameraServer
+		if (UseCameraServerEntry.GetBoolean(false)) {
+			cvSink.GrabFrame(imageColor);
+		}
 
 
 		cv::Mat channel[3];
@@ -276,4 +286,33 @@ cv::Mat filterIR(cv::Mat ir, cv::Rect roi)
 	cv::Mat dst = cv::Mat::zeros(ir.size(), ir.type());
 	ir.copyTo(dst, mask);
 	return dst;
+}
+
+static void VisionThread() {
+
+	cs::CvSink cvSink = frc::CameraServer::GetInstance()->GetVideo();
+
+	// Setup a CvSource. This will send images back to the Dashboard
+	cs::CvSource outputStream = frc::CameraServer::GetInstance()->PutVideo("Rectangle", 640, 480);
+
+	// Mats are very memory expensive. Lets reuse this Mat.
+	cv::Mat mat;
+
+	while (true) {
+		// Tell the CvSink to grab a frame from the camera and
+		// put it
+		// in the source mat.  If there is an error notify the
+		// output.
+		if (cvSink.GrabFrame(mat) == 0) {
+			// Send the output the error.
+			outputStream.NotifyError(cvSink.GetError());
+			// skip the rest of the current iteration
+			continue;
+		}
+		// Put a rectangle on the image
+		rectangle(mat, cv::Point(100, 100), cv::Point(400, 400),
+			cv::Scalar(255, 255, 255), 5);
+		// Give the output stream a new image to display
+		outputStream.PutFrame(mat);
+	}
 }
