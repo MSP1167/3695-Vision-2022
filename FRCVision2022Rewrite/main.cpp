@@ -65,10 +65,11 @@ int main(int& argc, char** argv) {
 	auto profile = p.start(cfg);
 	std::cout << "Camera Started! Setting Sensor Data..." << std::endl;
 	auto sensor = profile.get_device().first<rs2::depth_sensor>();
+	auto colorSensor = profile.get_device().first<rs2::color_sensor>();
 
 	sensor.set_option(RS2_OPTION_VISUAL_PRESET, RS2_RS400_VISUAL_PRESET_HIGH_DENSITY);
 	sensor.set_option(RS2_OPTION_LASER_POWER, 150);
-
+	colorSensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
 
 	rs2::align align_to_depth(RS2_STREAM_DEPTH);
 	rs2::align align_to_ir(RS2_STREAM_INFRARED);
@@ -131,27 +132,50 @@ int main(int& argc, char** argv) {
 
 		cv::split(imageColor, channel);
 #ifdef WINDOW
-		cv::imshow("RAW GREEN", channel[1]);
-		cv::imshow("RAW IR", image);
+		//cv::imshow("RAW GREEN", channel[1]);
+		//cv::imshow("RAW IR", image);
 		cv::imshow("RAW COLOR", imageColor);
 #endif
 		//image = channel[1];
 		cv::GaussianBlur(image, image, cv::Size(11, 5), 0, 0);
 
 		threshold(image, image, 230, 255, cv::THRESH_BINARY);
-#ifdef WINDOW
-		cv::imshow("Masked Image", image);
-#endif
 
 		grip::GripPipeline gripPipeline;
 		gripPipeline.Process(imageColor);
+		cv::Mat* imageColorProcessed = gripPipeline.GetHsvThresholdOutput();
+
+		cv::Mat binaryColor = cv::Mat::zeros(imageColor.size(), CV_8U);
+
+		threshold(*imageColorProcessed, binaryColor, 230, 255, cv::THRESH_BINARY);
+
+		
+
+#ifdef WINDOW
+		cv::imshow("GRIP Output", binaryColor);
+#endif
 
 		TargetFinder::TargetFinder targetFinder;
 
-		TargetFinder::TargetData colorTargetData = targetFinder.findTargetNoDepth(imageColor);
+		TargetFinder::TargetData colorTargetData = targetFinder.findTargetNoDepth(binaryColor);
+
+		if (colorTargetData.targetFound == false || colorTargetData.targetWidth == 0 || colorTargetData.targetHeight == 0 || colorTargetData.target.x == 0 || colorTargetData.target.y == 0) {
+			const sec duration = clock::now() - before;
+			std::string sendableData = targetFinder.makeSendableData(0, 0, 0, 0, 0);
+			targetFinder.sendDataUDP(sendableData, targetFinder.ROBOIPV4, targetFinder.ROBOPORT);
+			std::cout << "Frame Number	: " << std::to_string(frame_num) << " Took " << duration.count() << "s" << "\n";
+			std::cout << "Sending: " << sendableData << std::endl;
+			continue;
+		}
 
 		image = filterIR(image, colorTargetData.target);
 
+		
+#ifdef WINDOW
+		cv::Mat roi = image;
+		cv::rectangle(roi, colorTargetData.target, 255, 2);
+		cv::imshow("ROI",image);
+#endif
 		TargetFinder::TargetData data = targetFinder.findTargetNoDepth(image);
 		
 		if (data.targetFound == false) {
@@ -228,9 +252,11 @@ int main(int& argc, char** argv) {
 
 cv::Mat filterIR(cv::Mat ir, cv::Rect roi)
 {
-	cv::Mat mask = cv::Mat::zeros(8, 8, CV_8U);
-	cv::threshold(mask, mask, 240, 255, cv::ThresholdTypes::THRESH_BINARY);
-	mask(roi) = 255;
-	cv::bitwise_and(mask, ir, ir);
-	return ir;
+	cv::Mat mask = cv::Mat::zeros(ir.size(), ir.type());
+	cv::rectangle(mask, roi, 1, -1);
+	//cv::bitwise_not(mask, mask);
+	//cv::threshold(mask, mask, 240, 255, cv::ThresholdTypes::THRESH_BINARY);
+	cv::Mat dst = cv::Mat::zeros(ir.size(), ir.type());
+	ir.copyTo(dst, mask);
+	return dst;
 }

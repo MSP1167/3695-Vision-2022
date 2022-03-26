@@ -11,15 +11,15 @@ void GripPipeline::Process(cv::Mat& source0){
 	//Step Blur0:
 	//input
 	cv::Mat blurInput = source0;
-	BlurType blurType = BlurType::BOX;
-	double blurRadius = 0.0;  // default Double
+	BlurType blurType = BlurType::GAUSSIAN;
+	double blurRadius = 5.0;  // default Double
 	blur(blurInput, blurType, blurRadius, this->blurOutput);
 	//Step HSV_Threshold0:
 	//input
 	cv::Mat hsvThresholdInput = blurOutput;
-	double hsvThresholdHue[] = {46.94244604316548, 105.75757575757575};
-	double hsvThresholdSaturation[] = {61.915467625899275, 255.0};
-	double hsvThresholdValue[] = {77.96762589928058, 255.0};
+	double hsvThresholdHue[] = {60, 98};
+	double hsvThresholdSaturation[] = {83, 255.0};
+	double hsvThresholdValue[] = {64, 255.0};
 	hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, this->hsvThresholdOutput);
 }
 
@@ -77,6 +77,7 @@ cv::Mat* GripPipeline::GetHsvThresholdOutput(){
 	 */
 	void GripPipeline::hsvThreshold(cv::Mat &input, double hue[], double sat[], double val[], cv::Mat &out) {
 		cv::cvtColor(input, out, cv::COLOR_BGR2HSV);
+		std::cout << "Doing HSV Stuff" << "\n";
 		cv::inRange(out,cv::Scalar(hue[0], sat[0], val[0]), cv::Scalar(hue[1], sat[1], val[1]), out);
 	}
 

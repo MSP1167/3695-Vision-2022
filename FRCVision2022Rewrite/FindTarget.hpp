@@ -54,8 +54,8 @@ namespace TargetFinder {
 		/// <param name="port">Port of Destination</param>
 		void sendDataUDP(std::string in, std::string ip, int port);
 
-		int VISION_AREA_OFFSET_X = 70;
-		int VISION_AREA_OFFSET_Y = 20;
+		int VISION_AREA_OFFSET_X = 90;
+		int VISION_AREA_OFFSET_Y = 50;
 		std::string ROBOIPV4 = "10.36.95.2";
 		int ROBOPORT = 7777;
 	};

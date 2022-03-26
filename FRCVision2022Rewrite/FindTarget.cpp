@@ -161,9 +161,13 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat i
 	using clock = std::chrono::system_clock;
 	using sec = std::chrono::duration<double>;
 
+	cv::bitwise_not(img, img);
+
 #ifdef WINDOW
 	cv::imshow("Source Image", img);
 #endif
+
+	
 
 	// Setup SimpleBlobDetector parameters.
 	cv::SimpleBlobDetector::Params params;
@@ -178,7 +182,7 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat i
 	// Filter by Area.
 	params.filterByArea = true;
 	params.minArea = 10;
-	params.maxArea = 1000;
+	params.maxArea = 10000;
 
 	// Filter by Circularity
 	params.filterByCircularity = false;
