@@ -2,6 +2,9 @@
 #include "librealsense2/rs.hpp"
 #include "FindTarget.hpp"
 #include "GripPipeline.h"
+#include "networktables/NetworkTable.h"
+#include "networktables/NetworkTableEntry.h"
+#include "networktables/NetworkTableInstance.h"
 
 /// <summary>
 /// Filter IR Image from color Image (Green)
@@ -82,12 +85,18 @@ int main(int& argc, char** argv) {
 
 	const rs2_intrinsics cameraIntrinsics = p.get_active_profile().get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>().get_intrinsics();
 
-	std::cout << "Checking if color mask should be used..." << std::endl;
-	// Should we mask with color?
-	bool maskIR = false;
-	//InputParser inputParser(argc, argv);
-	//if (1)
-		//maskIR = true;
+	std::cout << "Starting Network Tables..." << std::endl;
+	nt::NetworkTableInstance NetworkTableInstance = nt::NetworkTableInstance::GetDefault();
+	std::shared_ptr<nt::NetworkTable> NetworkTable = NetworkTableInstance.GetTable("SmartDashboard");
+
+	nt::NetworkTableEntry YawTurnRadEntry = NetworkTable->GetEntry("YawTurnRad");
+	nt::NetworkTableEntry PitchTickEntry = NetworkTable->GetEntry("PitchTick");
+	nt::NetworkTableEntry PowerRPMEntry = NetworkTable->GetEntry("PowerRPM");
+	nt::NetworkTableEntry DistanceToTargetEntry = NetworkTable->GetEntry("DistanceToTarget");
+	nt::NetworkTableEntry DistanceToTargetGroundEntry = NetworkTable->GetEntry("DistanceToTargetGround");
+	nt::NetworkTableEntry FrameNumberEntry = NetworkTable->GetEntry("Frame Number Processed By Vision");
+	nt::NetworkTableEntry FrameDurationEntry = NetworkTable->GetEntry("Frame Process Time By Vision");
+
 	std::cout << "Starting Loop..." << std::endl;
 	while (true) {
 
@@ -124,6 +133,7 @@ int main(int& argc, char** argv) {
 		const int wc = color.as<rs2::video_frame>().get_width();
 		const int hc = color.as<rs2::video_frame>().get_height();
 		cv::Mat imageColor = cv::Mat(cv::Size(w, h), CV_8UC3, (void*)color.get_data());
+
 
 		cv::Mat channel[3];
 
@@ -234,12 +244,19 @@ int main(int& argc, char** argv) {
 		const sec duration = clock::now() - before;
 
 		std::cout << "Target Depth			: " << std::to_string(targetDepth) << " Meters" << "\n";
+		DistanceToTargetEntry.SetDouble(targetDepth);
 		std::cout << "Target Depth Adjusted	: " << std::to_string(targetDepthAdjusted) << " Ft" << "\n";
+		DistanceToTargetGroundEntry.SetDouble(targetDepthAdjusted);
 		std::cout << "X Turn Radians		: " << std::to_string(xTurnRad) << "\n";
+		YawTurnRadEntry.SetDouble(xTurnRad);
 		//cout << "Vector to Target		: " << to_string(targetPoint3D[0]) << " " << to_string(targetPoint3D[1]) << " " << to_string(targetPoint3D[2]) << endl;
 		std::cout << "Y Turn Rotations		: " << std::to_string(pitch) << "\n";
+		PitchTickEntry.SetDouble(pitch);
 		std::cout << "Turret Power			: " << std::to_string(power) << "\n";
+		PowerRPMEntry.SetDouble(power);
 		std::cout << "Frame Number	: " << std::to_string(frame_num) << " Took " << duration.count() << "s" << "\n";
+		FrameNumberEntry.SetDouble(frame_num);
+		FrameDurationEntry.SetDouble(duration.count());
 		std::string sendableData = targetFinder.makeSendableData(data.targetFound, xTurnRad, pitch, power, targetDepthAdjusted);
 		targetFinder.sendDataUDP(sendableData, targetFinder.ROBOIPV4, targetFinder.ROBOPORT);
 		std::cout << "Sending: " << sendableData << std::endl;
