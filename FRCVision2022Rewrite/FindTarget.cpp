@@ -328,6 +328,7 @@ void TargetFinder::TargetFinder::sendDataUDP(std::string in, std::string ip, int
 }
 
 std::string TargetFinder::TargetFinder::makeSendableData(int targetFound, double x, double y, double power, double groundDistance) {
+	// Will be TargetFound, xTurn, PitchColor, RPMColor, GroundDistanceColor
 	std::string data = std::to_string(targetFound) + "," + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(power) + "," + std::to_string(groundDistance);
 	return data;
 }

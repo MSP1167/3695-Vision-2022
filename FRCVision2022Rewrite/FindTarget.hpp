@@ -44,7 +44,7 @@ namespace TargetFinder {
 		/// <param name="power">Power to Shoot At</param>
 		/// <param name="groundDistance">Ground Distance to Target</param>
 		/// <returns>String Ready to Send to Destination</returns>
-		std::string makeSendableData(int targetFound, double x, double y, double power, double groundDistance);
+		std::string makeSendableData(int, double, double, double, double);
 
 		/// <summary>
 		/// Send Data Through UDP

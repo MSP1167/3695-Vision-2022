@@ -10,16 +10,16 @@ GripPipeline::GripPipeline() {
 void GripPipeline::Process(cv::Mat& source0){
 	//Step Blur0:
 	//input
-	cv::Mat blurInput = source0;
-	BlurType blurType = BlurType::GAUSSIAN;
-	double blurRadius = 5.0;  // default Double
-	blur(blurInput, blurType, blurRadius, this->blurOutput);
+	//cv::Mat blurInput = source0;
+	//BlurType blurType = BlurType::GAUSSIAN;
+	//double blurRadius = 5.0;  // default Double
+	//blur(blurInput, blurType, blurRadius, this->blurOutput);
 	//Step HSV_Threshold0:
 	//input
-	cv::Mat hsvThresholdInput = blurOutput;
-	double hsvThresholdHue[] = {60, 98};
-	double hsvThresholdSaturation[] = {83, 255.0};
-	double hsvThresholdValue[] = {64, 255.0};
+	cv::Mat hsvThresholdInput = source0;
+	double hsvThresholdHue[] = {66, 99};
+	double hsvThresholdSaturation[] = {30, 255.0};
+	double hsvThresholdValue[] = {85, 255.0};
 	hsvThreshold(hsvThresholdInput, hsvThresholdHue, hsvThresholdSaturation, hsvThresholdValue, this->hsvThresholdOutput);
 }
 
