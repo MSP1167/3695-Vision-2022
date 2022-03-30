@@ -152,7 +152,7 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTarget(cv::Mat img, rs2
 	return targetData;
 }
 
-TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat img)
+TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat &img)
 {
 	TargetData targetData;
 
@@ -209,7 +209,7 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat i
 
 	// Convert Keypoints to Points
 	std::vector<cv::Point> points;
-	for (cv::KeyPoint keypoint : keypoints)
+	for (const cv::KeyPoint &keypoint : keypoints)
 	{
 		points.push_back(cv::Point(keypoint.pt.x, keypoint.pt.y));
 	}
@@ -221,7 +221,7 @@ TargetFinder::TargetData TargetFinder::TargetFinder::findTargetNoDepth(cv::Mat i
 
 
 	std::vector<cv::Rect> rectangles;
-	for (cv::Point point : points) {
+	for (const cv::Point &point : points) {
 		//line(image, Point(0, keypoints[i].pt.y), Point(image.cols, keypoints[i].pt.y), (0, 0, 255));
 		cv::Point2f corner1 = cv::Point(point.x - VISION_AREA_OFFSET_X, point.y + VISION_AREA_OFFSET_Y);
 		cv::Point2f corner2 = cv::Point(point.x + VISION_AREA_OFFSET_X, point.y - VISION_AREA_OFFSET_Y);

@@ -8,7 +8,10 @@
 //#include "cameraserver/CameraServer.h"
 #include <cmath>
 #include <math.h>
-
+#ifdef _WIN32
+#define WINDOW
+#define COUT
+#endif
 /// <summary>
 /// Filter IR Image from color Image (Green)
 /// </summary>
@@ -202,10 +205,12 @@ int main(int& argc, char** argv) {
 			const sec duration = clock::now() - before;
 			std::string sendableData = targetFinder.makeSendableData(0, 0, 0, 0, 0);
 			targetFinder.sendDataUDP(sendableData, targetFinder.ROBOIPV4, targetFinder.ROBOPORT);
+#ifdef COUT
 			std::cout << "----------------------------" << "\nGreen Target is at " << colorTargetData.centerTarget.y + (colorTargetData.centerTargetHeight / 2) << "\n";
 			std::cout << "Frame Number	: " << std::to_string(frame_num) << " Took " << duration.count() << "s" << "\n";
 			std::cout << "Sending: " << sendableData << std::endl;
 			std::cout << "----------------------------" << std::endl;
+#endif
 			continue;
 		}
 
@@ -294,7 +299,7 @@ int main(int& argc, char** argv) {
 		const float powerPX = (powerA * pow(distancePX, 3)) + (powerB * pow(distancePX, 2)) + (powerC * pow(distancePX, 1)) + powerD;
 
 		const sec duration = clock::now() - before;
-
+#ifdef COUT
 //		std::cout << "Target Depth			: " << std::to_string(targetDepth) << " Meters" << "\n";
 //		DistanceToTargetEntry.SetDouble(targetDepth);
 //		std::cout << "Target Depth Adjusted		: " << std::to_string(targetDepthAdjusted) << " Ft" << "\n";
@@ -317,10 +322,13 @@ int main(int& argc, char** argv) {
 		std::cout << "Frame Number				: " << std::to_string(frame_num) << " Took " << duration.count() << "s" << "\n";
 //		FrameNumberEntry.SetDouble(frame_num);
 //		FrameDurationEntry.SetDouble(duration.count());
+#endif
 		std::string sendableData = targetFinder.makeSendableData(colorTargetData.targetFound, xTurnRad, pitchPX, powerPX, distancePX);
 		targetFinder.sendDataUDP(sendableData, targetFinder.ROBOIPV4, targetFinder.ROBOPORT);
+#ifdef COUT
 		std::cout << "Sending: " << sendableData << std::endl;
 		std::cout << "----------------------------" << std::endl;
+#endif
 #ifdef WINDOW
 		cv::waitKey(1);
 #endif
@@ -328,7 +336,7 @@ int main(int& argc, char** argv) {
 	return 0;
 }
 
-cv::Mat filterIR(cv::Mat ir, cv::Rect roi)
+cv::Mat filterIR(cv::Mat &ir, cv::Rect &roi)
 {
 	cv::Mat mask = cv::Mat::zeros(ir.size(), ir.type());
 	cv::rectangle(mask, roi, 1, -1);

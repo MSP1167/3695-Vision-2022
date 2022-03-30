@@ -8,10 +8,6 @@
 #include <opencv2/videoio.hpp>
 #include <string>
 
-#ifdef _WIN32
-#define WINDOW
-#endif
-
 namespace TargetFinder {
 	struct TargetData {
 		bool targetFound;
@@ -33,7 +29,7 @@ namespace TargetFinder {
 		/// <returns>2D Array of Points with Center of Target and Center of Center Target</returns>
 		TargetData findTarget(cv::Mat img, rs2::depth_frame depth, rs2_intrinsics cameraIntrinsics);
 
-		TargetData findTargetNoDepth(cv::Mat img);
+		TargetData findTargetNoDepth(cv::Mat &img);
 
 		/// <summary>
 		/// Make Sendable Data From Params
